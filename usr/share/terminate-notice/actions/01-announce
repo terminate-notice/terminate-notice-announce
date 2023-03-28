@@ -1,21 +1,36 @@
 #!/usr/bin/sh
+# This will look odd in the version control, but this will be set to the tag identifier
+# and date it was tagged in CI/CD.
 VERSION="#TAG# - #TAG_DATE#"
 
+# Load the helper function used later on.
 # shellcheck disable=SC1091
 . /usr/share/terminate-notice/helpers
 
+# This announces that the action has been triggered to syslog.
 start_action "$(basename "$0")-$VERSION"
 
+# This tries to read the config then checks to see whether the load failed
 eval "$(load_config announce)"
-
-if [ "$VERIFY" = "1" ]
+if [ "$FAILED" -eq 1 ]
 then
-    echo "Action $(basename "$0")-$VERSION - INFO: Verified at start."
-    exit 0
+    error 2 "$(basename "$0")-$VERSION" Failed to load config
 fi
 
+# If VERIFY=1 then this will announce that the variables were loaded OK on first run, and then exit.
+verified "$(basename "$0")-$VERSION"
+
+# Now you can actually run the action
 # shellcheck disable=SC2154
 if [ "$(first_of "$ANNOUNCE" "$announce" "1")" = "1" ]
 then
-    info announce Terminate Notice received.
+    if [ "${TERMINATE_NOTICE_RECEIVED:-0}" -eq 1 ]
+    then
+        info "$(basename "$0")-$VERSION" Terminate Notice received.
+    elif [ "${REBALANCE_RECOMMENDATION_RECEIVED:-0}" -eq 1 ]
+    then
+        info "$(basename "$0")-$VERSION" Rebalance Recommendation received.
+    else
+        error 99 "$(basename "$0")-$VERSION" Launched in error? Debug Required
+    fi
 fi
